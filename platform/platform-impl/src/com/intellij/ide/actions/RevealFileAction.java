@@ -2,7 +2,6 @@
 package com.intellij.ide.actions;
 
 import com.intellij.execution.configurations.GeneralCommandLine;
-import com.intellij.execution.process.CapturingProcessHandler;
 import com.intellij.execution.process.ProcessIOExecutorService;
 import com.intellij.execution.util.ExecUtil;
 import com.intellij.ide.IdeBundle;
@@ -50,7 +49,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -182,7 +180,7 @@ public class RevealFileAction extends DumbAwareAction implements LightEditCompat
   private static void doOpen(@NotNull Path _dir, @Nullable Path _toSelect) {
     String dir = _dir.toAbsolutePath().normalize().toString();
     String toSelect = _toSelect != null ? _toSelect.toAbsolutePath().normalize().toString() : null;
-    String fmApp;
+    FileManagerDescriptor fileManagerDescriptor;
 
     if (SystemInfo.isWindows) {
       if (JnaLoader.isLoaded()) {
@@ -200,13 +198,8 @@ public class RevealFileAction extends DumbAwareAction implements LightEditCompat
         ProcessSpawnHelper.spawn("open", dir);
       }
     }
-    else if ((fmApp = Holder.fileManagerApp) != null) {
-      if (fmApp.endsWith("dolphin") && toSelect != null) {
-        spawn(fmApp, "--select", toSelect);
-      }
-      else {
-        spawn(fmApp, toSelect != null ? toSelect : dir);
-      }
+    else if ((fileManagerDescriptor = Holder.fileManagerAppDescriptor) != null) {
+      fileManagerDescriptor.open(toSelect, dir);
     }
     else if (SystemInfo.hasXdgOpen()) {
       ProcessSpawnHelper.spawn("xdg-open", dir);
@@ -260,33 +253,11 @@ public class RevealFileAction extends DumbAwareAction implements LightEditCompat
     WinNT.HRESULT SHOpenFolderAndSelectItems(Pointer pIdlFolder, WinDef.UINT cIdl, Pointer[] apIdl, WinDef.DWORD dwFlags);
   }
 
-  private static void spawn(String... command) {
-    if (LOG.isDebugEnabled()) LOG.debug(Arrays.toString(command));
-
-    ProcessIOExecutorService.INSTANCE.execute(() -> {
-      try {
-        CapturingProcessHandler handler;
-        if (SystemInfo.isWindows) {
-          assert command.length == 1 : Arrays.toString(command);
-          Process process = Runtime.getRuntime().exec(command[0]);  // no quoting/escaping is needed
-          handler = new CapturingProcessHandler.Silent(process, null, command[0]);
-        }
-        else {
-          handler = new CapturingProcessHandler.Silent(new GeneralCommandLine(command));
-        }
-        handler.runProcess(10000, false).checkSuccess(LOG);
-      }
-      catch (Exception e) {
-        LOG.warn(e);
-      }
-    });
-  }
-
   private static class Holder {
-    private static final String fileManagerApp =
+    private static final FileManagerDescriptor fileManagerAppDescriptor =
       readDesktopEntryKey("Exec")
         .map(line -> line.split(" ")[0])
-        .filter(exec -> exec.endsWith("nautilus") || exec.endsWith("pantheon-files") || exec.endsWith("dolphin"))
+        .map(exec -> FileManagerDescriptorProvider.getByName(exec))
         .orElse(null);
 
     private static final String fileManagerName =
