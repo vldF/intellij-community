@@ -189,15 +189,15 @@ public class RevealFileAction extends DumbAwareAction implements LightEditCompat
         openViaShellApi(dir, toSelect);
       }
       else {
-        spawn(toSelect != null ? "explorer /select,\"" + toSelect + '"' : "explorer /root,\"" + dir + '"');
+        ProcessSpawnHelper.spawn(toSelect != null ? "explorer /select,\"" + toSelect + '"' : "explorer /root,\"" + dir + '"');
       }
     }
     else if (SystemInfo.isMac) {
       if (toSelect != null) {
-        spawn("open", "-R", toSelect);
+        ProcessSpawnHelper.spawn("open", "-R", toSelect);
       }
       else {
-        spawn("open", dir);
+        ProcessSpawnHelper.spawn("open", dir);
       }
     }
     else if ((fmApp = Holder.fileManagerApp) != null) {
@@ -209,7 +209,7 @@ public class RevealFileAction extends DumbAwareAction implements LightEditCompat
       }
     }
     else if (SystemInfo.hasXdgOpen()) {
-      spawn("xdg-open", dir);
+      ProcessSpawnHelper.spawn("xdg-open", dir);
     }
     else if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) {
       if (LOG.isDebugEnabled()) LOG.debug("opening " + dir + " via Desktop API");
